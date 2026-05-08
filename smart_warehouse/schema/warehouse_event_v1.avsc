@@ -6,7 +6,10 @@
   "fields": [
     {
       "name": "event_id",
-      "type": "string",
+      "type": {
+        "type": "string",
+        "logicalType": "uuid"
+      },
       "doc": "Globally unique event id used for idempotency."
     },
     {
@@ -92,7 +95,10 @@
               "name": "order_id",
               "type": [
                 "null",
-                "string"
+                {
+                  "type": "string",
+                  "logicalType": "uuid"
+                }
               ],
               "default": null
             }
@@ -144,7 +150,10 @@
             },
             {
               "name": "order_id",
-              "type": "string"
+              "type": {
+                "type": "string",
+                "logicalType": "uuid"
+              }
             },
             {
               "name": "zone_id",
@@ -173,7 +182,10 @@
             },
             {
               "name": "order_id",
-              "type": "string"
+              "type": {
+                "type": "string",
+                "logicalType": "uuid"
+              }
             },
             {
               "name": "zone_id",
@@ -223,7 +235,10 @@
           "fields": [
             {
               "name": "order_id",
-              "type": "string"
+              "type": {
+                "type": "string",
+                "logicalType": "uuid"
+              }
             },
             {
               "name": "items",
@@ -264,7 +279,10 @@
           "fields": [
             {
               "name": "order_id",
-              "type": "string"
+              "type": {
+                "type": "string",
+                "logicalType": "uuid"
+              }
             }
           ]
         }
