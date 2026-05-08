@@ -1,0 +1,275 @@
+{
+  "type": "record",
+  "name": "WarehouseEvent",
+  "namespace": "smart_warehouse.events",
+  "doc": "Envelope for all warehouse domain events published to the warehouse-events topic.",
+  "fields": [
+    {
+      "name": "event_id",
+      "type": "string",
+      "doc": "Globally unique event id used for idempotency."
+    },
+    {
+      "name": "event_type",
+      "type": {
+        "type": "enum",
+        "name": "WarehouseEventType",
+        "symbols": [
+          "PRODUCT_RECEIVED",
+          "PRODUCT_SHIPPED",
+          "PRODUCT_MOVED",
+          "PRODUCT_RESERVED",
+          "PRODUCT_RELEASED",
+          "INVENTORY_COUNTED",
+          "ORDER_CREATED",
+          "ORDER_COMPLETED"
+        ]
+      }
+    },
+    {
+      "name": "schema_version",
+      "type": "int",
+      "default": 1
+    },
+    {
+      "name": "sequence_number",
+      "type": "long",
+      "doc": "Monotonic number for the affected entity stream. Used to ignore stale events."
+    },
+    {
+      "name": "occurred_at",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      }
+    },
+    {
+      "name": "product_received",
+      "type": [
+        "null",
+        {
+          "type": "record",
+          "name": "ProductReceived",
+          "fields": [
+            {
+              "name": "product_sku",
+              "type": "string"
+            },
+            {
+              "name": "zone_id",
+              "type": "string"
+            },
+            {
+              "name": "quantity",
+              "type": "int"
+            }
+          ]
+        }
+      ],
+      "default": null
+    },
+    {
+      "name": "product_shipped",
+      "type": [
+        "null",
+        {
+          "type": "record",
+          "name": "ProductShipped",
+          "fields": [
+            {
+              "name": "product_sku",
+              "type": "string"
+            },
+            {
+              "name": "zone_id",
+              "type": "string"
+            },
+            {
+              "name": "quantity",
+              "type": "int"
+            },
+            {
+              "name": "order_id",
+              "type": [
+                "null",
+                "string"
+              ],
+              "default": null
+            }
+          ]
+        }
+      ],
+      "default": null
+    },
+    {
+      "name": "product_moved",
+      "type": [
+        "null",
+        {
+          "type": "record",
+          "name": "ProductMoved",
+          "fields": [
+            {
+              "name": "product_sku",
+              "type": "string"
+            },
+            {
+              "name": "from_zone_id",
+              "type": "string"
+            },
+            {
+              "name": "to_zone_id",
+              "type": "string"
+            },
+            {
+              "name": "quantity",
+              "type": "int"
+            }
+          ]
+        }
+      ],
+      "default": null
+    },
+    {
+      "name": "product_reserved",
+      "type": [
+        "null",
+        {
+          "type": "record",
+          "name": "ProductReserved",
+          "fields": [
+            {
+              "name": "product_sku",
+              "type": "string"
+            },
+            {
+              "name": "order_id",
+              "type": "string"
+            },
+            {
+              "name": "zone_id",
+              "type": "string"
+            },
+            {
+              "name": "quantity",
+              "type": "int"
+            }
+          ]
+        }
+      ],
+      "default": null
+    },
+    {
+      "name": "product_released",
+      "type": [
+        "null",
+        {
+          "type": "record",
+          "name": "ProductReleased",
+          "fields": [
+            {
+              "name": "product_sku",
+              "type": "string"
+            },
+            {
+              "name": "order_id",
+              "type": "string"
+            },
+            {
+              "name": "zone_id",
+              "type": "string"
+            },
+            {
+              "name": "quantity",
+              "type": "int"
+            }
+          ]
+        }
+      ],
+      "default": null
+    },
+    {
+      "name": "inventory_counted",
+      "type": [
+        "null",
+        {
+          "type": "record",
+          "name": "InventoryCounted",
+          "fields": [
+            {
+              "name": "product_sku",
+              "type": "string"
+            },
+            {
+              "name": "zone_id",
+              "type": "string"
+            },
+            {
+              "name": "actual_quantity",
+              "type": "int"
+            }
+          ]
+        }
+      ],
+      "default": null
+    },
+    {
+      "name": "order_created",
+      "type": [
+        "null",
+        {
+          "type": "record",
+          "name": "OrderCreated",
+          "fields": [
+            {
+              "name": "order_id",
+              "type": "string"
+            },
+            {
+              "name": "items",
+              "type": {
+                "type": "array",
+                "items": {
+                  "type": "record",
+                  "name": "OrderItem",
+                  "fields": [
+                    {
+                      "name": "product_sku",
+                      "type": "string"
+                    },
+                    {
+                      "name": "zone_id",
+                      "type": "string"
+                    },
+                    {
+                      "name": "quantity",
+                      "type": "int"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "default": null
+    },
+    {
+      "name": "order_completed",
+      "type": [
+        "null",
+        {
+          "type": "record",
+          "name": "OrderCompleted",
+          "fields": [
+            {
+              "name": "order_id",
+              "type": "string"
+            }
+          ]
+        }
+      ],
+      "default": null
+    }
+  ]
+}
