@@ -88,7 +88,7 @@ func (c *Consumer) processMessage(ctx context.Context, msg *KafkaMessage) error 
 	}
 
 	if err := c.handler.Handle(ctx, event, meta); err != nil {
-		return err
+		return c.publishToDLQAndCommit(ctx, msg, err)
 	}
 
 	if err := c.committer.CommitMessage(ctx, msg); err != nil {
