@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"time"
+
 	"smart_warehouse/internal/events"
+	"smart_warehouse/internal/metrics"
 )
 
 type Consumer struct {
@@ -13,6 +16,7 @@ type Consumer struct {
 	decoder   EventDecoder
 	handler   EventHandler
 	dlq       DLQPublisher
+	metrics   *metrics.Metrics
 	logger    *slog.Logger
 }
 
@@ -22,6 +26,7 @@ func New(
 	decoder EventDecoder,
 	handler EventHandler,
 	dlq DLQPublisher,
+	appMetrics *metrics.Metrics,
 	logger *slog.Logger,
 ) *Consumer {
 	return &Consumer{
@@ -30,6 +35,7 @@ func New(
 		decoder:   decoder,
 		handler:   handler,
 		dlq:       dlq,
+		metrics:   appMetrics,
 		logger:    logger,
 	}
 }
@@ -64,10 +70,19 @@ func (c *Consumer) Run(ctx context.Context) error {
 }
 
 func (c *Consumer) processMessage(ctx context.Context, msg *KafkaMessage) error {
+	startedAt := time.Now()
+	eventType := "unknown"
+	defer func() {
+		c.metrics.ObserveProcessingDuration(eventType, time.Since(startedAt))
+	}()
+
+	c.metrics.SetConsumerLag(msg.Topic, msg.Partition, msg.Lag)
+
 	event, err := c.decoder.Decode(msg.Value)
 	if err != nil {
 		return c.publishToDLQAndCommit(ctx, msg, err)
 	}
+	eventType = event.EventType
 
 	meta := KafkaMetadata{
 		Topic:     msg.Topic,
@@ -88,8 +103,14 @@ func (c *Consumer) processMessage(ctx context.Context, msg *KafkaMessage) error 
 	}
 
 	if err := c.handler.Handle(ctx, event, meta); err != nil {
+		var validationErr *events.ValidationError
+		if !errors.As(err, &validationErr) {
+			c.metrics.CassandraWriteError()
+		}
 		return c.publishToDLQAndCommit(ctx, msg, err)
 	}
+
+	c.metrics.EventProcessed(event.EventType)
 
 	if err := c.committer.CommitMessage(ctx, msg); err != nil {
 		return err

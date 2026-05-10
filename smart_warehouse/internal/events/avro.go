@@ -3,6 +3,7 @@ package events
 import (
 	"encoding/binary"
 	"fmt"
+	"sort"
 
 	"github.com/hamba/avro/v2"
 	"github.com/riferrei/srclient"
@@ -55,7 +56,14 @@ func NewVersionedEncoder(schemaRegistryURL string, registrations map[int]SchemaR
 		schemas:  make(map[int]registeredSchema, len(registrations)),
 	}
 
-	for version, registration := range registrations {
+	versions := make([]int, 0, len(registrations))
+	for version := range registrations {
+		versions = append(versions, version)
+	}
+	sort.Ints(versions)
+
+	for _, version := range versions {
+		registration := registrations[version]
 		registered, err := registry.CreateSchema(registration.Subject, registration.Schema, srclient.Avro)
 		if err != nil {
 			return nil, fmt.Errorf("register avro schema subject=%s version=%d: %w", registration.Subject, version, err)
@@ -121,6 +129,14 @@ func (e *Encoder) Encode(event *WarehouseEvent) ([]byte, error) {
 		return nil, fmt.Errorf("encode avro event: %w", err)
 	}
 
+	return e.encode(event)
+}
+
+func (e *Encoder) EncodeUnsafe(event *WarehouseEvent) ([]byte, error) {
+	return e.encode(event)
+}
+
+func (e *Encoder) encode(event *WarehouseEvent) ([]byte, error) {
 	schema, ok := e.schemas[event.SchemaVersion]
 	if !ok {
 		return nil, NewValidationError("UNSUPPORTED_SCHEMA_VERSION", "schema_version", fmt.Sprintf("schema version %d is not registered in encoder", event.SchemaVersion))

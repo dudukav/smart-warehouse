@@ -12,6 +12,7 @@ type KafkaMessage struct {
 	Topic     string
 	Partition int32
 	Offset    int64
+	Lag       int64
 }
 
 type KafkaMetadata struct {

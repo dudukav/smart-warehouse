@@ -58,14 +58,27 @@ func (c *ConfluentKafkaClient) ReadMessage(ctx context.Context) (*KafkaMessage, 
 			return nil, fmt.Errorf("read kafka message: %w", err)
 		}
 
+		topic := topicName(msg.TopicPartition.Topic)
+		lag := c.messageLag(topic, msg.TopicPartition.Partition, int64(msg.TopicPartition.Offset))
+
 		return &KafkaMessage{
 			Key:       msg.Key,
 			Value:     msg.Value,
-			Topic:     topicName(msg.TopicPartition.Topic),
+			Topic:     topic,
 			Partition: msg.TopicPartition.Partition,
 			Offset:    int64(msg.TopicPartition.Offset),
+			Lag:       lag,
 		}, nil
 	}
+}
+
+func (c *ConfluentKafkaClient) messageLag(topic string, partition int32, offset int64) int64 {
+	_, high, err := c.consumer.QueryWatermarkOffsets(topic, partition, 500)
+	if err != nil {
+		return 0
+	}
+
+	return high - offset - 1
 }
 
 func (c *ConfluentKafkaClient) CommitMessage(ctx context.Context, msg *KafkaMessage) error {

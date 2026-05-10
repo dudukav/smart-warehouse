@@ -11,18 +11,19 @@ import (
 
 type EventEncoder interface {
 	Encode(event *events.WarehouseEvent) ([]byte, error)
+	EncodeUnsafe(event *events.WarehouseEvent) ([]byte, error)
 }
 
 type Producer struct {
-	producer 	*kafka.Producer
-	encoder 	EventEncoder
-	topic 		string
-	logger 		*slog.Logger
+	producer *kafka.Producer
+	encoder  EventEncoder
+	topic    string
+	logger   *slog.Logger
 }
 
 type Config struct {
 	BootstrapServers string
-	Topic string
+	Topic            string
 }
 
 func New(
@@ -31,8 +32,8 @@ func New(
 	logger *slog.Logger,
 ) (*Producer, error) {
 	producer, err := kafka.NewProducer(&kafka.ConfigMap{
-		"bootstrap.servers":  	cfg.BootstrapServers,
-		"acks":              	"all",
+		"bootstrap.servers": cfg.BootstrapServers,
+		"acks":              "all",
 	})
 
 	if err != nil {
@@ -41,9 +42,9 @@ func New(
 
 	return &Producer{
 		producer: producer,
-		encoder: encoder,
-		topic: cfg.Topic,
-		logger: logger,
+		encoder:  encoder,
+		topic:    cfg.Topic,
+		logger:   logger,
 	}, nil
 }
 
@@ -53,18 +54,31 @@ func (p *Producer) Publish(ctx context.Context, event events.WarehouseEvent) err
 		return err
 	}
 
+	return p.publishEncoded(ctx, event, value)
+}
+
+func (p *Producer) PublishUnsafe(ctx context.Context, event events.WarehouseEvent) error {
+	value, err := p.encoder.EncodeUnsafe(&event)
+	if err != nil {
+		return err
+	}
+
+	return p.publishEncoded(ctx, event, value)
+}
+
+func (p *Producer) publishEncoded(ctx context.Context, event events.WarehouseEvent, value []byte) error {
 	key := events.PartitionKey(event)
 
 	delivery := make(chan kafka.Event, 1)
 	defer close(delivery)
 
-	err = p.producer.Produce(&kafka.Message{
+	err := p.producer.Produce(&kafka.Message{
 		TopicPartition: kafka.TopicPartition{
-			Topic: &p.topic,
+			Topic:     &p.topic,
 			Partition: kafka.PartitionAny,
 		},
 		Value: value,
-		Key: []byte(key),
+		Key:   []byte(key),
 	}, delivery)
 
 	if err != nil {
