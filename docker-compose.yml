@@ -84,6 +84,9 @@ services:
       CASSANDRA_RACK: rack1
       CASSANDRA_ENDPOINT_SNITCH: GossipingPropertyFileSnitch
       CASSANDRA_SEEDS: cassandra-1
+      CASSANDRA_NUM_TOKENS: 8
+      MAX_HEAP_SIZE: 512M
+      HEAP_NEWSIZE: 128M
     volumes:
       - cassandra-1-data:/var/lib/cassandra
     healthcheck:
@@ -98,13 +101,16 @@ services:
     hostname: cassandra-2
     depends_on:
       cassandra-1:
-        condition: service_started
+        condition: service_healthy
     environment:
       CASSANDRA_CLUSTER_NAME: smart-warehouse
       CASSANDRA_DC: datacenter1
       CASSANDRA_RACK: rack1
       CASSANDRA_ENDPOINT_SNITCH: GossipingPropertyFileSnitch
       CASSANDRA_SEEDS: cassandra-1
+      CASSANDRA_NUM_TOKENS: 8
+      MAX_HEAP_SIZE: 512M
+      HEAP_NEWSIZE: 128M
     volumes:
       - cassandra-2-data:/var/lib/cassandra
     healthcheck:
@@ -119,13 +125,18 @@ services:
     hostname: cassandra-3
     depends_on:
       cassandra-1:
-        condition: service_started
+        condition: service_healthy
+      cassandra-2:
+        condition: service_healthy
     environment:
       CASSANDRA_CLUSTER_NAME: smart-warehouse
       CASSANDRA_DC: datacenter1
       CASSANDRA_RACK: rack1
       CASSANDRA_ENDPOINT_SNITCH: GossipingPropertyFileSnitch
       CASSANDRA_SEEDS: cassandra-1
+      CASSANDRA_NUM_TOKENS: 8
+      MAX_HEAP_SIZE: 512M
+      HEAP_NEWSIZE: 128M
     volumes:
       - cassandra-3-data:/var/lib/cassandra
     healthcheck:
