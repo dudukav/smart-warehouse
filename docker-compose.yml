@@ -194,6 +194,8 @@ services:
     restart: unless-stopped
 
   producer:
+    profiles:
+      - manual
     build:
       context: ./smart_warehouse
       dockerfile: Dockerfile

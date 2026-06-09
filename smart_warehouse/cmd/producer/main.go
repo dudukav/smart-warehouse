@@ -2,8 +2,15 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"flag"
+	"fmt"
+	"io"
 	"os"
+	"strings"
 	"time"
+
+	"github.com/google/uuid"
 
 	"smart_warehouse/internal/config"
 	"smart_warehouse/internal/events"
@@ -12,6 +19,10 @@ import (
 )
 
 func main() {
+	eventFile := flag.String("file", "-", "path to JSON event file, or - to read from stdin")
+	unsafePublish := flag.Bool("unsafe", false, "publish without producer-side validation")
+	flag.Parse()
+
 	log := logger.New("warehouse-producer")
 	cfg := config.LoadProducer()
 
@@ -54,41 +65,74 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	for _, event := range demoEvents() {
-		if err := publisher.Publish(ctx, event); err != nil {
+	manualEvents, err := readManualEvents(*eventFile)
+	if err != nil {
+		log.Error("failed to read manual events", "error", err)
+		os.Exit(1)
+	}
+
+	for _, event := range manualEvents {
+		err := publisher.Publish(ctx, event)
+		if *unsafePublish {
+			err = publisher.PublishUnsafe(ctx, event)
+		}
+		if err != nil {
 			log.Error("failed to publish event", "error", err, "event_id", event.EventID, "event_type", event.EventType)
 			os.Exit(1)
 		}
 	}
-
-	invalid := events.NewProductReceived(events.SchemaVersionV2, "SKU-DLQ", "A-01", -5, 100, nil)
-	if err := publisher.PublishUnsafe(ctx, invalid); err != nil {
-		log.Error("failed to publish invalid dlq demo event", "error", err)
-		os.Exit(1)
-	}
 }
 
-func demoEvents() []events.WarehouseEvent {
-	orderID := events.NewOrderID()
-	shipmentOrderID := orderID
-	supplierID := "SUP-001"
+func readManualEvents(path string) ([]events.WarehouseEvent, error) {
+	var data []byte
+	var err error
+	if path == "-" {
+		data, err = io.ReadAll(os.Stdin)
+	} else {
+		data, err = os.ReadFile(path)
+	}
+	if err != nil {
+		return nil, err
+	}
 
-	return []events.WarehouseEvent{
-		events.NewProductReceived(events.SchemaVersionV1, "SKU-001", "A-01", 100, 1, nil),
-		events.NewProductReceived(events.SchemaVersionV2, "SKU-001", "A-01", 50, 2, &supplierID),
-		events.NewProductReserved(events.SchemaVersionV2, "SKU-001", orderID, "A-01", 10, 3),
-		events.NewProductReleased(events.SchemaVersionV2, "SKU-001", orderID, "A-01", 5, 4),
-		events.NewProductMoved(events.SchemaVersionV2, "SKU-001", "A-01", "B-01", 20, 5),
-		events.NewProductShipped(events.SchemaVersionV2, "SKU-001", "B-01", 5, &shipmentOrderID, 6),
-		events.NewInventoryCounted(events.SchemaVersionV2, "SKU-001", "B-01", 15, 7),
-		events.NewOrderCreated(events.SchemaVersionV2, orderID, []events.OrderItem{
-			{
-				ProductSKU: "SKU-001",
-				ZoneID:     "A-01",
-				Quantity:   3,
-			},
-		}, 8),
-		events.NewOrderCompleted(events.SchemaVersionV2, orderID, 9),
-		events.NewProductReceived(events.SchemaVersionV2, "SKU-001", "A-01", 999, 1, nil),
+	data = []byte(strings.TrimSpace(string(data)))
+	if len(data) == 0 {
+		return nil, fmt.Errorf("event JSON is empty")
+	}
+
+	var result []events.WarehouseEvent
+	if data[0] == '[' {
+		if err := json.Unmarshal(data, &result); err != nil {
+			return nil, fmt.Errorf("decode event array: %w", err)
+		}
+	} else {
+		var event events.WarehouseEvent
+		if err := json.Unmarshal(data, &event); err != nil {
+			return nil, fmt.Errorf("decode event: %w", err)
+		}
+		result = append(result, event)
+	}
+
+	if len(result) == 0 {
+		return nil, fmt.Errorf("event JSON must contain at least one event")
+	}
+
+	now := time.Now().UTC().UnixMilli()
+	for index := range result {
+		fillManualEventDefaults(&result[index], now)
+	}
+
+	return result, nil
+}
+
+func fillManualEventDefaults(event *events.WarehouseEvent, occurredAt int64) {
+	if event.EventID == "" {
+		event.EventID = uuid.NewString()
+	}
+	if event.SchemaVersion == 0 {
+		event.SchemaVersion = int(events.SchemaVersionV2)
+	}
+	if event.OccurredAt == 0 {
+		event.OccurredAt = occurredAt
 	}
 }

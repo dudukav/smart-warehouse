@@ -113,26 +113,43 @@ Dashboard:
 Smart Warehouse Consumer
 ```
 
-## Demo producer
+## Manual producer
 
-Producer является one-shot demo runner. Он отправляет набор событий и завершает работу.
+Producer является one-shot CLI: он отправляет вручную переданное событие или массив событий и завершает работу.
 
-Повторный запуск:
+Событие можно передать из файла:
 
 ```bash
-docker compose run --rm producer
+docker compose run --rm producer --file /app/examples/product_received.json
 ```
 
-Demo-события находятся в:
+Или через stdin:
 
-```text
-smart_warehouse/cmd/producer/main.go
+```bash
+docker compose run --rm -T producer < smart_warehouse/examples/product_received.json
 ```
 
-События создаются factory-функциями из:
+`event_id`, `occurred_at` и `schema_version` можно не указывать: producer заполнит их сам (`schema_version` по умолчанию `2`).
 
-```text
-smart_warehouse/internal/events/factory.go
+Для ручной отправки невалидного события в Kafka, например чтобы проверить DLQ, используйте:
+
+```bash
+docker compose run --rm -T producer --unsafe < smart_warehouse/examples/product_received_invalid.json
+```
+
+Минимальный пример JSON:
+
+```json
+{
+  "event_type": "PRODUCT_RECEIVED",
+  "sequence_number": 1,
+  "product_received": {
+    "product_sku": "SKU-001",
+    "zone_id": "A-01",
+    "quantity": 100,
+    "supplier_id": "SUP-001"
+  }
+}
 ```
 
 ## Cassandra model

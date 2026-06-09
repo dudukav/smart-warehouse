@@ -18,5 +18,6 @@ RUN apt-get update \
 
 COPY --from=build /out/service /app/service
 COPY schema /app/schema
+COPY examples /app/examples
 
 ENTRYPOINT ["/app/service"]

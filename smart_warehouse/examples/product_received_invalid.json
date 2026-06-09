@@ -1,0 +1,9 @@
+{
+  "event_type": "PRODUCT_RECEIVED",
+  "sequence_number": 100,
+  "product_received": {
+    "product_sku": "SKU-DLQ",
+    "zone_id": "A-01",
+    "quantity": -5
+  }
+}
